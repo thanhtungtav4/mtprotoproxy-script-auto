@@ -16,11 +16,11 @@ This script automates the installation and setup of the [MTProto Proxy](https://
 1. **Download the installer script**
 
 ```bash
-wget https://yourdomain.com/path/to/auto_install_mtprotoproxy.sh
+wget https://github.com/thanhtungtav4/mtprotoproxy-script-auto/blob/main/auto_install_mtprotoproxy.sh
 chmod +x auto_install_mtprotoproxy.sh
 
+## Usage
 
 2. **Run the installer with root privileges**
 
-```bash
 sudo ./auto_install_mtprotoproxy.sh
