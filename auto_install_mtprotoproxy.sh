@@ -4,7 +4,19 @@
 INSTALL_DIR="/root/mtprotoproxy"
 SERVICE_FILE="/etc/systemd/system/mtprotoproxy.service"
 REPO_URL="https://github.com/alexbers/mtprotoproxy.git"
-PYTHON_BIN=$(which python3)
+PYTHON_BIN=$(command -v python3)
+
+# Detect package manager
+if command -v apt >/dev/null 2>&1; then
+    PACKAGE_MANAGER="apt"
+elif command -v yum >/dev/null 2>&1; then
+    PACKAGE_MANAGER="yum"
+elif command -v dnf >/dev/null 2>&1; then
+    PACKAGE_MANAGER="dnf"
+else
+    echo "No supported package manager found (apt, yum, or dnf). Exiting."
+    exit 1
+fi
 
 # Prompt user for port and secret key
 read -rp "Enter the port for MTProto Proxy (default 80): " PORT
@@ -15,15 +27,35 @@ SECRET=${SECRET:-00000000000000000000000000000001}
 
 # Update and install required packages
 echo "Updating system and installing dependencies..."
-sudo apt update && sudo apt upgrade -y
-sudo apt install python3 python3-pip git -y
+if [ "$PACKAGE_MANAGER" = "apt" ]; then
+    sudo apt update && sudo apt upgrade -y
+    sudo apt install python3 python3-pip git -y
+else
+    sudo "$PACKAGE_MANAGER" -y update
+    sudo "$PACKAGE_MANAGER" -y install python3 python3-pip git
+fi
+
+# Verify Python installation
+if [ -z "$PYTHON_BIN" ]; then
+    echo "Python3 is not installed. Installing..."
+    if [ "$PACKAGE_MANAGER" = "apt" ]; then
+        sudo apt install python3 -y
+    else
+        sudo "$PACKAGE_MANAGER" -y install python3
+    fi
+    PYTHON_BIN=$(command -v python3)
+    if [ -z "$PYTHON_BIN" ]; then
+        echo "Failed to install Python3. Exiting."
+        exit 1
+    fi
+fi
 
 # Clone the repository
 echo "Cloning MTProto Proxy repository..."
 if [[ -d "$INSTALL_DIR" ]]; then
     echo "Directory $INSTALL_DIR already exists. Skipping clone."
 else
-    git clone $REPO_URL "$INSTALL_DIR"
+    git clone "$REPO_URL" "$INSTALL_DIR"
 fi
 
 # Navigate to installation directory
@@ -31,6 +63,7 @@ cd "$INSTALL_DIR" || exit
 
 # Install Python dependencies
 echo "Installing Python dependencies..."
+pip3 install --upgrade pip
 pip3 install -r requirements.txt
 
 # Create configuration file
@@ -56,7 +89,7 @@ EOL
 # Open the port in firewall (try ufw, fallback to iptables)
 echo "Opening port $PORT in firewall..."
 if command -v ufw >/dev/null 2>&1; then
-    sudo ufw allow $PORT/tcp
+    sudo ufw allow "$PORT"/tcp
     sudo ufw reload
 elif command -v firewall-cmd >/dev/null 2>&1; then
     sudo firewall-cmd --add-port=${PORT}/tcp --permanent
